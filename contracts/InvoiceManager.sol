@@ -73,4 +73,8 @@ contract InvoiceManager is zContract, OnlySystem {
 
         return creatorInvoices;
     }
+
+	function getMyInvoices() public view returns (Invoice[] memory) {
+		return getInvoicesByCreator(msg.sender);
+	}
 }
