@@ -121,8 +121,7 @@ contract InvoiceManager is zContract, OnlySystem {
         );
         Invoice storage invoice = invoicesByIndex[invoiceId];
 
-        /*
-        require(amount * stableRatio > invoice.priceUSD, "Inbound amount is not sufficient to pay invoice");
+        // require(amount * stableRatio > invoice.priceUSD, "Inbound amount is not sufficient to pay invoice");
 
         address wzeta = systemContract.wZetaContractAddress();
  
@@ -135,7 +134,6 @@ contract InvoiceManager is zContract, OnlySystem {
         );
 
         IWETH9(wzeta).transfer(address(uint160(bytes20(invoice.creator))), outputAmount);
-        */
         invoice.paid = true;
     }
 
