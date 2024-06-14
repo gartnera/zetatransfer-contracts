@@ -25,13 +25,15 @@ contract InvoiceManager is zContract, OnlySystem {
         bool paid;
     }
 
-	Invoice[] public invoices;
     uint public nextInvoiceId;
 
     address usdcEthAddress;
 
 	// Mapping from creator address to an array of invoice IDs
     mapping(address => uint[]) public invoicesByCreator;
+
+    // Mapping from index to Invoice
+    mapping(uint => Invoice) public invoicesByIndex;
 
     event InvoiceCreated(uint id, address creator, string description, uint256 priceUSD);
     event InvoicePaid(uint id, address payer);
@@ -117,10 +119,9 @@ contract InvoiceManager is zContract, OnlySystem {
             message,
             (uint)
         );
+        Invoice storage invoice = invoicesByIndex[invoiceId];
 
-        uint256 stableRatio = getStableRatio(zrc20);
-        Invoice storage invoice = invoices[invoiceId];
-
+        /*
         require(amount * stableRatio > invoice.priceUSD, "Inbound amount is not sufficient to pay invoice");
 
         address wzeta = systemContract.wZetaContractAddress();
@@ -134,7 +135,7 @@ contract InvoiceManager is zContract, OnlySystem {
         );
 
         IWETH9(wzeta).transfer(address(uint160(bytes20(invoice.creator))), outputAmount);
-
+        */
         invoice.paid = true;
     }
 
@@ -147,7 +148,7 @@ contract InvoiceManager is zContract, OnlySystem {
             paid: false
         });
 
-        invoices.push(newInvoice);
+        invoicesByIndex[nextInvoiceId] = newInvoice;
         invoicesByCreator[msg.sender].push(nextInvoiceId);
 
         emit InvoiceCreated(nextInvoiceId, msg.sender, _description, _priceUSD);
@@ -155,12 +156,16 @@ contract InvoiceManager is zContract, OnlySystem {
     }
 
     function getInvoices() public view returns (Invoice[] memory) {
+        Invoice[] memory invoices = new Invoice[](nextInvoiceId);
+        for (uint i = 0; i < nextInvoiceId; i++) {
+            invoices[i] = invoicesByIndex[i];
+        }
         return invoices;
     }
 
     function getInvoice(uint _invoiceId) public view returns (Invoice memory) {
         require(_invoiceId < nextInvoiceId, "Invoice does not exist");
-        return invoices[_invoiceId];
+        return invoicesByIndex[_invoiceId];
     }
 
     function getInvoicesByCreator(address _creator) public view returns (Invoice[] memory) {
@@ -168,7 +173,7 @@ contract InvoiceManager is zContract, OnlySystem {
         Invoice[] memory creatorInvoices = new Invoice[](invoiceIds.length);
 
         for (uint i = 0; i < invoiceIds.length; i++) {
-            creatorInvoices[i] = invoices[invoiceIds[i]];
+            creatorInvoices[i] = invoicesByIndex[invoiceIds[i]];
         }
 
         return creatorInvoices;
