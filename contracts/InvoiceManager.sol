@@ -109,6 +109,10 @@ contract InvoiceManager is zContract, OnlySystem {
         return ratio;
     }
 
+    function addressToBytes(address addr) internal pure returns (bytes memory) {
+        return abi.encodePacked(addr);
+    }
+
     function onCrossChainCall(
         zContext calldata context,
         address zrc20,
@@ -123,17 +127,27 @@ contract InvoiceManager is zContract, OnlySystem {
 
         // require(amount * stableRatio > invoice.priceUSD, "Inbound amount is not sufficient to pay invoice");
 
-        address wzeta = systemContract.wZetaContractAddress();
- 
-        uint256 outputAmount = SwapHelperLib.swapTokensForExactTokens(
+        (address gasZRC20, uint256 gasFee) = IZRC20(usdcEthAddress)
+            .withdrawGasFee();
+
+        uint256 inputForGas = SwapHelperLib.swapTokensForExactTokens(
             systemContract,
             zrc20,
-            amount,
-            wzeta,
+            gasFee,
+            gasZRC20,
+            amount
+        );
+
+        uint256 outputAmount = SwapHelperLib.swapExactTokensForTokens(
+            systemContract,
+            zrc20,
+            amount - inputForGas,
+            usdcEthAddress,
             0
         );
 
-        IWETH9(wzeta).transfer(address(uint160(bytes20(invoice.creator))), outputAmount);
+        IZRC20(gasZRC20).approve(usdcEthAddress, gasFee);
+        IZRC20(usdcEthAddress).withdraw(addressToBytes(invoice.creator), outputAmount);
         invoice.paid = true;
     }
 
