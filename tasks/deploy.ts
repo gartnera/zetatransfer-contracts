@@ -20,8 +20,16 @@ const main = async (args: any, hre: HardhatRuntimeEnvironment) => {
 
   const systemContract = getAddress("systemContract", network);
 
-  const factory = await hre.ethers.getContractFactory(args.name);
-  const contract = await factory.deploy(systemContract);
+  const factory = await hre.ethers.getContractFactory(
+    args.name,
+  );
+  const contract = await factory.deploy(
+    systemContract,
+    // testnet pyth
+    "0x0708325268dF9F66270F1401206434524814508b",
+    // testnet zrc20 usdc
+    "0xcC683A782f4B30c138787CB5576a86AF66fdc31d",
+  );
   await contract.deployed();
 
   const isTestnet = network === "zeta_testnet";

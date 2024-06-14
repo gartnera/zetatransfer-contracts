@@ -1,5 +1,7 @@
 import "./tasks/interact";
 import "./tasks/deploy";
+import "./tasks/ratio";
+import "./tasks/pyth";
 import "@nomicfoundation/hardhat-toolbox";
 import "@zetachain/toolkit/tasks";
 
