@@ -8,7 +8,7 @@ import "@zetachain/toolkit/contracts/SwapHelperLib.sol";
 import "@zetachain/toolkit/contracts/BytesHelperLib.sol";
 import "@pythnetwork/pyth-sdk-solidity/IPyth.sol";
 import "@pythnetwork/pyth-sdk-solidity/PythStructs.sol";
-import "hardhat/console.sol";
+import "@zetachain/protocol-contracts/contracts/zevm/interfaces/IWZETA.sol";
 
 contract InvoiceManager is zContract, OnlySystem {
     SystemContract public systemContract;
@@ -74,9 +74,18 @@ contract InvoiceManager is zContract, OnlySystem {
     function getStableRatio(
         address zrc20
     ) public view returns (uint256) {
+        // Ensure that the zrc20 address is valid
+        require(zrc20 != address(0), "Invalid address");
+
+        // Get the prices from the Pyth contract
         PythStructs.Price memory inboundPricePyth = pyth.getPrice(zrc20ToPythId[zrc20]);
         PythStructs.Price memory outboundPricePyth = pyth.getPrice(zrc20ToPythId[usdcEthAddress]);
 
+        // Ensure prices are valid (assuming the Pyth getPrice method sets price to zero on error)
+        require(inboundPricePyth.price != 0, "Invalid inbound price");
+        require(outboundPricePyth.price != 0, "Invalid outbound price");
+
+        // Convert prices to uint256 with the required precision
         uint256 inboundPrice = convertToUint(
             inboundPricePyth.price,
             inboundPricePyth.expo,
@@ -89,7 +98,11 @@ contract InvoiceManager is zContract, OnlySystem {
             18
         );
 
-        uint256 ratio = inboundPrice / outboundPrice;
+        // Ensure the outbound price is not zero to avoid division by zero
+        require(outboundPrice != 0, "Outbound price is zero");
+
+        // Calculate the ratio
+        uint256 ratio = inboundPrice * 1e18 / outboundPrice;
 
         return ratio;
     }
@@ -106,30 +119,22 @@ contract InvoiceManager is zContract, OnlySystem {
         );
 
         uint256 stableRatio = getStableRatio(zrc20);
-
         Invoice storage invoice = invoices[invoiceId];
+
+        require(amount * stableRatio > invoice.priceUSD, "Inbound amount is not sufficient to pay invoice");
+
+        address wzeta = systemContract.wZetaContractAddress();
  
-        (address gasZRC20, uint256 gasFee) = IZRC20(usdcEthAddress)
-            .withdrawGasFee();
- 
-        uint256 inputForGas = SwapHelperLib.swapTokensForExactTokens(
+        uint256 outputAmount = SwapHelperLib.swapTokensForExactTokens(
             systemContract,
             zrc20,
-            gasFee,
-            gasZRC20,
-            amount
-        );
- 
-        uint256 outputAmount = SwapHelperLib.swapExactTokensForTokens(
-            systemContract,
-            zrc20,
-            amount - inputForGas,
-            usdcEthAddress,
+            amount,
+            wzeta,
             0
         );
 
-        IZRC20(gasZRC20).approve(usdcEthAddress, gasFee);
-        IZRC20(usdcEthAddress).withdraw(abi.encodePacked(invoice.creator), outputAmount);
+        IWETH9(wzeta).transfer(address(uint160(bytes20(invoice.creator))), outputAmount);
+
         invoice.paid = true;
     }
 

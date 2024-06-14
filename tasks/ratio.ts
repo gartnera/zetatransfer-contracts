@@ -20,7 +20,7 @@ const main = async (args: any, hre: HardhatRuntimeEnvironment) => {
     );
   }
 
-  const contract = InvoiceManager__factory.connect("0xba9e82f6045A0eD0F6a07809A12F1C678C8a9340", signer)
+  const contract = InvoiceManager__factory.connect("0x36C61C727E611cfD94C0bD93057c44460808Dbb4", signer)
 
   const ratio = await contract.getStableRatio("0xd97B1de3619ed2c6BEb3860147E30cA8A7dC9891");
   console.log(`stable ratio: ${ratio}`)
